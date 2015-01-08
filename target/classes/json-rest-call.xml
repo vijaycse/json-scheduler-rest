@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:quartz="http://www.mulesoft.org/schema/mule/quartz" xmlns:mongo="http://www.mulesoft.org/schema/mule/mongo" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" version="EE-3.5.1"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/mongo http://www.mulesoft.org/schema/mule/mongo/current/mule-mongo.xsd
+http://www.mulesoft.org/schema/mule/quartz http://www.mulesoft.org/schema/mule/quartz/current/mule-quartz.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd">
+	<quartz:connector name="Quartz" validateConnections="true" doc:name="Quartz"/>
+    <queued-thread-per-processor-processing-strategy name="Queued_Thread_Per_Processor_Processing_Strategy" maxThreads="10" minThreads="1" poolExhaustedAction="DISCARD" threadWaitTimeout="1000" queueTimeout="1000" maxQueueSize="100" doc:name="Queued Thread Per Processor Processing Strategy">
+     </queued-thread-per-processor-processing-strategy>
+      <spring:beans> 
+      <context:property-placeholder location="classpath:scheduler.properties" />
+      <spring:bean name="startStream1"
+        class="com.json.rest.scheduler.MyScheduler" id="startStream1"> 
+       		<spring:property name="repeatCount" value="${stream1.repeatcount}"/>
+       		<spring:property name="duration" value="${stream1.duration}"/>
+       </spring:bean>
+       <spring:bean name="startStream10" 
+        class="com.json.rest.scheduler.MyScheduler" id="startStream10"> 
+            <spring:property name="duration" value="${stream10.duration}"/>
+       		<spring:property name="repeatCount" value="${stream10.repeatcount}"/>
+       </spring:bean>
+         <spring:bean name="startStream0"
+        class="com.json.rest.scheduler.MyScheduler" id="startStream0"> 
+       		<spring:property name="repeatCount" value="${stream0.repeatcount}"/>
+       		<spring:property name="duration" value="${stream0.duration}"/>
+       </spring:bean>
+      </spring:beans> 
+     <flow name="json-rest-call" doc:name="json-rest-call">
+        <http:inbound-endpoint exchange-pattern="one-way" host="localhost" port="8081" doc:name="HTTP"/>
+         <json:json-to-object-transformer returnClass="java.util.HashMap" doc:name="JSON to Object"/> 
+        <echo-component doc:name="Echo "/>
+        <async doc:name="Async" processingStrategy="Queued_Thread_Per_Processor_Processing_Strategy">
+        
+        <choice doc:name="Choice">
+           <when expression="(payload.stream == '0')">
+                <logger message="good! stream0" level="INFO" doc:name="Logger"/>
+               	 <json:object-to-json-transformer doc:name="Object to JSON"/>
+                  <flow-ref doc:name="stream0" name="stream0"/>
+            </when>
+            <when expression="(payload.stream == '1')">
+            	<logger message="good! stream1" level="INFO" doc:name="Logger"/>
+
+              <json:object-to-json-transformer doc:name="Object to JSON"/>
+            	<flow-ref doc:name="Cal stream1 flow" name="stream1"/>
+           </when>
+  			 <when expression="(payload.stream == '10')">
+                    <logger message="good! stream10 #[payload]" level="INFO" doc:name="Logger"/>
+               <json:object-to-json-transformer doc:name="Object to JSON"/>
+                <flow-ref doc:name="Call stream10 flow" name="stream10"/>
+              </when>
+            <otherwise>
+            	 <logger message="bad!" level="INFO" doc:name="Logger"/>
+                <echo-component doc:name="Echo"/>
+            </otherwise>
+        </choice>
+        </async>
+    </flow>
+    <flow name="stream0" doc:name="stream0">
+  			<component doc:name="Java">
+    				<spring-object bean="startStream0" />
+				</component> 
+				 <logger message="stream0  active" level="INFO" doc:name="Logger"/>          
+	</flow>
+		
+	 <flow name="stream1" doc:name="stream1">
+                <component doc:name="Java">
+    				<spring-object bean="startStream1" />
+				</component> 
+				 <logger message="stream1  active" level="INFO" doc:name="Logger"/>  
+        </flow>
+	
+
+ <flow name="stream10" doc:name="stream10">
+   
+        	     <component doc:name="Java">
+    				<spring-object bean="startStream10" />
+				</component> 
+        <logger message="stream10  active" level="INFO" doc:name="Logger"/>  
+  </flow>
+
+</mule>
